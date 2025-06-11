@@ -2,6 +2,8 @@ import sys
 import dataset
 import datetime
 import os
+import threading
+import time
 
 # database connection
 db = dataset.connect('sqlite:///project-timer.db')
@@ -28,7 +30,7 @@ def exit():
 
 
 def process_user_input():
-    choice = input("Enter your choice: ")
+    choice = input("")
     if choice == "0":
         create_task()
     elif choice == "s":
@@ -48,13 +50,13 @@ def refresh():
     os.system('cls' if os.name == 'nt' else 'clear')
     show_projects_status()
     show_default_options()
-    process_user_input()
 
 
 def show_default_options():
     print("0. New task")
     print("\n[s] Stop timer")
     print("[x] Exit")
+    print("Enter your choice: ", end="")
 
 
 def show_projects_status():
@@ -143,9 +145,22 @@ def stop_timer():
         )
 
 
+def periodic_refresh():
+    while True:
+        time.sleep(300)  # 5 minutes
+        try:
+            refresh()
+        except Exception as e:
+            print(f"Error during periodic refresh: {e}")
+
+
 def main():
+    # Start background thread for periodic refresh
+    t = threading.Thread(target=periodic_refresh, daemon=True)
+    t.start()
     while True:
         refresh()
+        process_user_input()
 
 
 if __name__ == "__main__":
