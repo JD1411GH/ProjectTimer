@@ -192,3 +192,8 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Misc items
+project-timer.db
+project-timer.db-shm
+project-timer.db-wal
