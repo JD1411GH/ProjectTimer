@@ -38,7 +38,10 @@ def process_user_input():
     elif choice == "x":
         exit()
     elif int(choice) > 0 and int(choice) <= len(display_entries):
-        show_tasks(int(choice))
+        key = list(display_entries.keys())[int(choice) - 1]
+        print(key)
+        # show_tasks(int(choice))
+        exit()
     else:
         print("Invalid choice. Please try again.")
         process_user_input()
@@ -46,7 +49,7 @@ def process_user_input():
 
 def refresh():
     os.system('cls' if os.name == 'nt' else 'clear')
-    show_projects_status()
+    show_project_status()
     show_default_options()
 
 
@@ -59,7 +62,7 @@ def show_default_options():
     print("\nEnter your choice: ", end="")
 
 
-def show_projects_status():
+def show_project_status():
     global table
     global display_entries
 
@@ -131,6 +134,8 @@ def start_timer(project, task):
 
 
 def stop_timer():
+    global table
+
     running_records = list(table.find(end_time=None))
     if not running_records:
         return
