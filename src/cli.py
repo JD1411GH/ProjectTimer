@@ -10,13 +10,11 @@ db = dataset.connect('sqlite:///project-timer.db')
 table = db["time_records"]
 
 # globals
-projects = []
+display_entries = {}
 
 
-def create_task():
-    project = input("Enter project name: ")
-    task = input("Enter task name: ")
-    start_timer(project, task)
+def clear():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
 
 def daily_report():
@@ -31,15 +29,15 @@ def exit():
 
 def process_user_input():
     choice = input("")
-    if choice == "0":
-        create_task()
+    if choice == "p":
+        plan_task()
     elif choice == "s":
         stop_timer()
     elif choice == "d":
         daily_report()
     elif choice == "x":
         exit()
-    elif int(choice) > 0 and int(choice) <= len(projects):
+    elif int(choice) > 0 and int(choice) <= len(display_entries):
         show_tasks(int(choice))
     else:
         print("Invalid choice. Please try again.")
@@ -53,59 +51,57 @@ def refresh():
 
 
 def show_default_options():
-    print("0. New task")
     print("\n[s] Stop timer")
+    print("[p] Plan task")
+    print("[d] Day summary")
+    print("[t] Task summary")
     print("[x] Exit")
-    print("Enter your choice: ", end="")
+    print("\nEnter your choice: ", end="")
 
 
 def show_projects_status():
     global table
-    global projects
+    global display_entries
 
-    # Project list
-    projects = [{"project": row['project']}
-                for row in table.distinct('project')]
+    # add today's tasks
+    today = datetime.date.today().isoformat()
+    rows = list(table.find(start_time={'like': f"{today}%"}))
 
-    # effort spent
-    today = datetime.date.today()
-    today_records = [
-        row for row in table.all()
-        if datetime.datetime.fromisoformat(row['start_time']).date() == today
-    ]
-    for record in today_records:
-        idx = next(
-            (i for i, p in enumerate(projects) if p['project'] == record['project']), None)
-        start_time = record['start_time']
-        end_time = record['end_time']
-        if end_time is None:
-            end_time = datetime.datetime.now().isoformat()
-            projects[idx]['timer_running'] = True
-        duration = datetime.datetime.fromisoformat(
-            end_time) - datetime.datetime.fromisoformat(start_time)
-        if 'duration' in projects[idx]:
-            projects[idx]['duration'] = projects[idx]['duration'] + duration
+    # populate display_entries
+    display_entries.clear()
+    for row in rows:
+        key = f"[{row['project']}] {row['task']}"
+        if key in display_entries:
+            start = datetime.datetime.fromisoformat(row['start_time'])
+            end = datetime.datetime.fromisoformat(
+                row['end_time']) if row['end_time'] else datetime.datetime.now()
+            duration = (end - start).total_seconds() / 3600  # hours in decimal
+            display_entries[key] = {
+                'actual_effort': round(duration, 2) + display_entries[key]['actual_effort'],
+                'planned_effort': row['planned_effort'] if 'planned_effort' in row else 0,
+                'running': "" if row['end_time'] else "*"
+            }
         else:
-            projects[idx]['duration'] = duration
+            start = datetime.datetime.fromisoformat(row['start_time'])
+            end = datetime.datetime.fromisoformat(
+                row['end_time']) if row['end_time'] else datetime.datetime.now()
+            duration = (end - start).total_seconds() / 3600  # hours in decimal
+            display_entries[key] = {
+                'actual_effort': round(duration, 2),
+                'planned_effort': 0 if row['planned_effort'] is None else row['planned_effort'],
+                'running': "" if row['end_time'] else "*"
+            }
 
-    # display
-    print("\n")
-    for idx, proj in enumerate(projects, 1):
-        if 'duration' in proj:
-            duration = proj.get('duration', datetime.timedelta())
-        else:
-            duration = 0
-        hours_decimal = duration.total_seconds() / 3600
-        running = ""
-        if 'timer_running' in proj and proj['timer_running']:
-            running = "*"
-        print(f"{idx}. {proj['project']} - {hours_decimal:.2f}{running} hrs")
+    # show display_entries
+    for idx, (key, entry) in enumerate(display_entries.items(), 1):
+        print(
+            f"{idx}. {key} - {entry['actual_effort']}{entry['running']} / {entry['planned_effort']} hrs")
 
 
 def show_tasks(project_id):
     os.system('cls' if os.name == 'nt' else 'clear')
 
-    project_name = projects[project_id - 1]['project']
+    project_name = display_entries[project_id - 1]['project']
     tasks = list({row['task'] for row in table.find(project=project_name)})
     if not tasks:
         print(f"No tasks found for project '{project_name}'.")
@@ -116,7 +112,8 @@ def show_tasks(project_id):
 
     task_id = int(input("\n Select task to start: "))
     if task_id > 0 and task_id <= len(tasks):
-        start_timer(projects[project_id - 1]['project'], tasks[task_id - 1])
+        start_timer(display_entries[project_id - 1]
+                    ['project'], tasks[task_id - 1])
     else:
         print("Invalid input")
         show_tasks(project_id)
@@ -128,7 +125,7 @@ def start_timer(project, task):
         "project": project,
         "task": task,
         "start_time": datetime.datetime.now().isoformat(),
-        "end_time": None
+        "end_time": None,
     })
     refresh()
 
@@ -152,6 +149,49 @@ def periodic_refresh():
             refresh()
         except Exception as e:
             print(f"Error during periodic refresh: {e}")
+
+
+def plan_task():
+    global table
+
+    clear()
+
+    # select project
+    projects = set(row['project'] for row in table.all())
+    for idx, project in enumerate(projects, 1):
+        print(f"{idx}. {project}")
+    print("0. New project")
+    project_idx = input("\nSelect project: ")
+
+    if project_idx == "0":
+        project = input("Enter project name: ")
+    else:
+        project_list = list(projects)
+        project = project_list[int(project_idx) - 1]
+
+    # select task
+    tasks = set(row['task'] for row in table.find(project=project))
+    for idx, task in enumerate(tasks, 1):
+        print(f"{idx}. {task}")
+    print("0. New task")
+    task_idx = input("\nSelect task: ")
+
+    if task_idx == "0":
+        task = input("Enter task name: ")
+    else:
+        task_list = list(tasks)
+        task = task_list[int(task_idx) - 1]
+
+    planned_effort = input("Planned effort: ")
+
+    table.insert({
+        "project": project,
+        "task": task,
+        "start_time": datetime.datetime.now().isoformat(),
+        "end_time": datetime.datetime.now().isoformat(),
+        "planned_effort": int(planned_effort)
+    })
+    refresh()
 
 
 def main():
