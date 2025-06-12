@@ -15,7 +15,8 @@ active_action = False
 
 
 def clear():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    # os.system('cls' if os.name == 'nt' else 'clear')
+    pass
 
 
 def day_summary():
@@ -89,7 +90,7 @@ def process_user_input():
 
 
 def refresh():
-    os.system('cls' if os.name == 'nt' else 'clear')
+    clear()
     show_project_status()
     show_default_options()
 
@@ -163,8 +164,11 @@ def show_project_status():
     for idx, (key, entry) in enumerate(display_entries.items(), 1):
         total_planned_effort += 0 if entry['planned_effort'] is None else entry['planned_effort']
         total_actual_effort += 0 if entry['actual_effort'] is None else entry['actual_effort']
-        print(
-            f"{idx}. {key} - {entry['actual_effort']}{entry['running']} / {entry['planned_effort']} hrs")
+        line = f"{idx}. {key} - {entry['actual_effort']} / {entry['planned_effort']} hrs"
+        if entry['running'] == "*":
+            print(f"\033[92m{line}\033[0m")
+        else:
+            print(line)
     print(
         f"\nTotal effort: {total_actual_effort} / {total_planned_effort} hrs")
 
