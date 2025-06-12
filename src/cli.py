@@ -11,14 +11,51 @@ table = db["time_records"]
 
 # globals
 display_entries = {}
+active_action = False
 
 
 def clear():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 
-def daily_report():
-    pass
+def day_summary():
+    global active_action
+    active_action = True
+
+    day = datetime.date.today()
+
+    while True:
+        clear()
+        rows = list(table.find(start_time={'like': f"{day.isoformat()}%"}))
+        if not rows:
+            print(f"No records found for {day.isoformat()}.")
+        else:
+            projects = {}
+            for row in rows:
+                start = datetime.datetime.fromisoformat(row['start_time'])
+                end = datetime.datetime.fromisoformat(
+                    row['end_time']) if row['end_time'] else datetime.datetime.now()
+                # effort in hours, rounded to 2 decimals
+                effort = round((end - start).total_seconds() / 3600, 2)
+                if row['project'] in projects:
+                    projects[row['project']] += effort
+                else:
+                    projects[row['project']] = effort
+            for project, effort in projects.items():
+                print(f"{project}: {effort} hrs")
+
+        choice = input(
+            "\n[p] previous day  [n] next day  [q] quit: ").strip().lower()
+        if choice == "p":
+            day -= datetime.timedelta(days=1)
+        elif choice == "n":
+            day += datetime.timedelta(days=1)
+        elif choice == "q":
+            break
+        else:
+            print("Invalid choice.")
+
+    active_action = False
 
 
 def exit():
@@ -28,23 +65,27 @@ def exit():
 
 
 def process_user_input():
+    global active_action
+    active_action = True
+
     choice = input("")
     if choice == "p":
         plan_task()
     elif choice == "s":
         stop_timer()
     elif choice == "d":
-        daily_report()
+        day_summary()
     elif choice == "x":
         exit()
     elif int(choice) > 0 and int(choice) <= len(display_entries):
         key = list(display_entries.keys())[int(choice) - 1]
-        print(key)
-        # show_tasks(int(choice))
-        exit()
+        project = key.split("]")[0][1:]
+        task = key.split("]")[1][1:]
+        start_timer(project, task)
     else:
         print("Invalid choice. Please try again.")
         process_user_input()
+    active_action = False
 
 
 def refresh():
@@ -54,11 +95,29 @@ def refresh():
 
 
 def show_default_options():
-    print("\n[s] Stop timer")
-    print("[p] Plan task")
-    print("[d] Day summary")
-    print("[t] Task summary")
-    print("[x] Exit")
+    options = [
+        ("[s]", "Stop timer", ""),
+        ("[p]", "Plan task", ""),
+        ("[d]", "Day summary", ""),
+        ("[t]", "Task summary", ""),
+        ("[x]", "Exit", "")
+    ]
+
+    col_width = 20
+    num_cols = 3
+
+    # Pad options to fill the last row
+    padded_options = options + \
+        [("", "", "")] * ((num_cols - len(options) % num_cols) % num_cols)
+
+    print()
+    for i in range(0, len(padded_options), num_cols):
+        row = padded_options[i:i+num_cols]
+        line = ""
+        for opt in row:
+            text = f"{opt[0]} {opt[1]}".ljust(col_width)
+            line += text
+        print(line)
     print("\nEnter your choice: ", end="")
 
 
@@ -69,6 +128,9 @@ def show_project_status():
     # add today's tasks
     today = datetime.date.today().isoformat()
     rows = list(table.find(start_time={'like': f"{today}%"}))
+    if len(rows) == 0:
+        print("No tasks found for today.")
+        return
 
     # populate display_entries
     display_entries.clear()
@@ -96,39 +158,35 @@ def show_project_status():
             }
 
     # show display_entries
+    total_planned_effort = 0
+    total_actual_effort = 0
     for idx, (key, entry) in enumerate(display_entries.items(), 1):
+        total_planned_effort += 0 if entry['planned_effort'] is None else entry['planned_effort']
+        total_actual_effort += 0 if entry['actual_effort'] is None else entry['actual_effort']
         print(
             f"{idx}. {key} - {entry['actual_effort']}{entry['running']} / {entry['planned_effort']} hrs")
-
-
-def show_tasks(project_id):
-    os.system('cls' if os.name == 'nt' else 'clear')
-
-    project_name = display_entries[project_id - 1]['project']
-    tasks = list({row['task'] for row in table.find(project=project_name)})
-    if not tasks:
-        print(f"No tasks found for project '{project_name}'.")
-    else:
-        print(f"Tasks for project '{project_name}':")
-        for idx, task in enumerate(tasks, 1):
-            print(f"{idx}. {task}")
-
-    task_id = int(input("\n Select task to start: "))
-    if task_id > 0 and task_id <= len(tasks):
-        start_timer(display_entries[project_id - 1]
-                    ['project'], tasks[task_id - 1])
-    else:
-        print("Invalid input")
-        show_tasks(project_id)
+    print(
+        f"\nTotal effort: {total_actual_effort} / {total_planned_effort} hrs")
 
 
 def start_timer(project, task):
     global table
+
+    stop_timer()
+
+    # find planned effort
+    planned_effort = 0
+    planned_effort_row = table.find_one(project=project, task=task)
+    if planned_effort_row and 'planned_effort' in planned_effort_row:
+        planned_effort = planned_effort_row['planned_effort']
+
+    # insert into database
     table.insert({
         "project": project,
         "task": task,
         "start_time": datetime.datetime.now().isoformat(),
         "end_time": None,
+        "planned_effort": planned_effort
     })
     refresh()
 
@@ -151,14 +209,17 @@ def periodic_refresh():
     while True:
         time.sleep(300)  # 5 minutes
         try:
-            refresh()
+            if not active_action:
+                refresh()
         except Exception as e:
             print(f"Error during periodic refresh: {e}")
 
 
 def plan_task():
     global table
+    global active_action
 
+    active_action = True
     clear()
 
     # select project
@@ -194,8 +255,10 @@ def plan_task():
         "task": task,
         "start_time": datetime.datetime.now().isoformat(),
         "end_time": datetime.datetime.now().isoformat(),
-        "planned_effort": int(planned_effort)
+        "planned_effort": float(planned_effort)
     })
+
+    active_action = False
     refresh()
 
 
