@@ -15,7 +15,7 @@ active_action = False
 
 
 def clear():
-    # os.system('cls' if os.name == 'nt' else 'clear')
+    os.system('cls' if os.name == 'nt' else 'clear')
     pass
 
 
@@ -72,6 +72,8 @@ def process_user_input():
     choice = input("")
     if choice == "p":
         plan_task()
+    elif choice == "r":
+        refresh()
     elif choice == "s":
         stop_timer()
     elif choice == "d":
@@ -97,6 +99,7 @@ def refresh():
 
 def show_default_options():
     options = [
+        ("[r]", "Refresh", ""),
         ("[s]", "Stop timer", ""),
         ("[p]", "Plan task", ""),
         ("[d]", "Day summary", ""),

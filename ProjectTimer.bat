@@ -1,3 +1,3 @@
 @echo off
 
-C:/Users/jyd1kor/GitReposWin/ProjectTimer/.venv/Scripts/python.exe c:/Users/jyd1kor/GitReposWin/ProjectTimer/src/cli.py
+"C:\Users\jyd1kor\OneDrive - Bosch Group\Documents\GitReposWin\ProjectTimer\.venv\Scripts\python.exe" "C:\Users\jyd1kor\OneDrive - Bosch Group\Documents\GitReposWin\ProjectTimer\src\cli.py"
