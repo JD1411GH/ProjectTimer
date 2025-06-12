@@ -6,7 +6,7 @@ import threading
 import time
 
 # database connection
-db = dataset.connect('sqlite:///project-timer.db')
+db = dataset.connect('postgresql://neondb_owner:npg_ICOSNqEB2j7s@ep-royal-fire-a1k450uh-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require')
 table = db["time_records"]
 
 # globals
@@ -46,12 +46,12 @@ def day_summary():
                 print(f"{project}: {effort} hrs")
 
         choice = input(
-            "\n[p] previous day  [n] next day  [q] quit: ").strip().lower()
+            "\n[p] previous day  [n] next day  [x] exit: ").strip().lower()
         if choice == "p":
             day -= datetime.timedelta(days=1)
         elif choice == "n":
             day += datetime.timedelta(days=1)
-        elif choice == "q":
+        elif choice == "x":
             break
         else:
             print("Invalid choice.")
