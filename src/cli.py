@@ -66,9 +66,6 @@ def exit():
 
 
 def process_user_input():
-    global active_action
-    active_action = True
-
     choice = input("")
     if choice == "p":
         plan_task()
@@ -88,7 +85,6 @@ def process_user_input():
     else:
         print("Invalid choice. Please try again.")
         process_user_input()
-    active_action = False
 
 
 def refresh():
@@ -214,7 +210,7 @@ def stop_timer():
 
 def periodic_refresh():
     while True:
-        time.sleep(300)  # 5 minutes
+        time.sleep(30)  # 5 minutes
         try:
             if not active_action:
                 refresh()
