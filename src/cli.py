@@ -6,7 +6,7 @@ import threading
 import time
 
 # database connection
-db = dataset.connect('postgresql://neondb_owner:npg_ICOSNqEB2j7s@ep-royal-fire-a1k450uh-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require')
+db = dataset.connect('sqlite:///project-timer.db')
 table = db["time_records"]
 
 # globals
